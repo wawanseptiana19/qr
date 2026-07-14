@@ -7,13 +7,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.44.2/+esm';
-    window.__supabase = createClient(
-      'https://qzdvdfebkzlwkhvxwsju.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6ZHZkZmVia3psd2todnh3c2p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcyMTA4OTksImV4cCI6MjA1Mjc4Njg5OX0.Z9XKmX49vu0kZwn6YMom8QeLNNdKQMXCIkxcIoHKQFs'
-    );
-  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -44,7 +37,6 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* Icon */
     .icon-wrap {
       width: 56px; height: 56px;
       background: #f3f4f6;
@@ -54,7 +46,6 @@
     }
     .icon-wrap i { font-size: 1.4rem; color: #6b7280; }
 
-    /* Title */
     h1 {
       text-align: center;
       font-size: 1.25rem; font-weight: 700;
@@ -62,7 +53,6 @@
       margin-bottom: 1.75rem;
     }
 
-    /* Camera / preview zone */
     .scan-zone {
       position: relative;
       border: 1.5px dashed #d1d5db;
@@ -78,7 +68,6 @@
     #qrReader { width: 100%; height: 100%; }
     #qrReader video { width: 100% !important; height: 100% !important; object-fit: cover; }
 
-    /* Overlay before camera starts */
     .scan-placeholder {
       position: absolute; inset: 0;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -97,7 +86,6 @@
     }
     .scan-placeholder.hidden { display: none; }
 
-    /* Scan reticle frame drawn over active camera */
     .reticle {
       position: absolute; inset: 12%;
       border: 2px solid #22c55e;
@@ -109,7 +97,6 @@
     }
     .reticle.show { opacity: 1; }
 
-    /* Frozen frame after successful capture */
     .scan-zone.captured #qrReader { filter: brightness(0.55); }
     .capture-check {
       position: absolute; inset: 0;
@@ -119,7 +106,6 @@
     .capture-check i { font-size: 2.4rem; color: #22c55e; }
     .scan-zone.captured .capture-check { display: flex; }
 
-    /* Message */
     #loginMsg {
       font-size: 0.8rem; font-weight: 500;
       border-radius: 0.5rem; padding: 0;
@@ -130,7 +116,6 @@
     #loginMsg.error   { background: #fef2f2; color: #dc2626; }
     #loginMsg.success { background: #f0fdf4; color: #16a34a; }
 
-    /* Redirect spinner */
     .redirect-spinner {
       display: none; align-items: center; justify-content: center;
       gap: 0.4rem; font-size: 0.8rem; color: #16a34a; font-weight: 500;
@@ -140,65 +125,80 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner-icon { animation: spin 0.7s linear infinite; }
 
-    /* Preview area */
-    #previewArea { display: none; margin-bottom: 1rem; }
-    #previewArea.show { display: block; }
-    .preview-media-wrapper {
-      position: relative; width: 100%; border-radius: 0.75rem;
-      overflow: hidden; background: #f3f4f6; border: 1px solid #e5e7eb;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; min-height: 160px;
-    }
-    .preview-media-wrapper img, .preview-media-wrapper video { width: 100%; height: auto; display: block; max-height: 320px; object-fit: contain; }
-    .preview-media-wrapper audio { width: 100%; padding: 1rem; }
-    .preview-media-wrapper iframe { width: 100%; height: 320px; border: none; }
-    .preview-media-wrapper pre {
-      width: 100%; max-height: 260px; overflow: auto; margin: 0; padding: 0.85rem;
-      font-size: 0.72rem; white-space: pre-wrap; word-break: break-all;
-      font-family: 'DM Mono', monospace; color: #374151;
-    }
-    .preview-download-btn {
-      display: flex; align-items: center; justify-content: center; gap: 0.4rem;
-      width: 100%; margin-top: 0.65rem; padding: 0.65rem;
-      border-radius: 0.6rem; border: none; cursor: pointer;
-      background: #111827; color: #fff; font-size: 0.82rem; font-weight: 600;
-      transition: opacity 0.2s;
-    }
-    .preview-download-btn:hover { opacity: 0.85; }
-    .scan-again-btn {
-      display: flex; align-items: center; justify-content: center; gap: 0.4rem;
-      width: 100%; margin-top: 0.5rem; padding: 0.6rem;
-      border-radius: 0.6rem; border: 1.5px solid #e5e7eb; cursor: pointer;
-      background: #fff; color: #4b5563; font-size: 0.8rem; font-weight: 600;
-    }
-
-    /* Fullscreen overlay */
-    #fsOverlay {
-      display: none; position: fixed; inset: 0; z-index: 9999;
-      background: rgba(0,0,0,0.9); align-items: center; justify-content: center; padding: 1.25rem;
-    }
-    #fsOverlay.show { display: flex; }
-    #fsOverlay img, #fsOverlay video { max-width: 100%; max-height: 90vh; border-radius: 0.5rem; }
-    #fsClose {
-      position: fixed; top: 1rem; right: 1rem; width: 36px; height: 36px;
-      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
-      border-radius: 0.6rem; color: #fff; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; font-size: 1rem;
-    }
-
-    /* Already logged */
-    .already-logged {
-      display: none; background: #f0fdf4; border: 1px solid #bbf7d0;
-      border-radius: 0.625rem; padding: 0.6rem 0.875rem; text-align: center;
-      font-size: 0.8rem; color: #15803d; font-weight: 500; margin-bottom: 1rem;
-    }
-    .already-logged.show { display: block; }
-
-    /* Footer */
     .footer {
       text-align: center; margin-top: 1.5rem;
       font-size: 0.72rem; color: #d1d5db;
       display: flex; align-items: center; justify-content: center; gap: 0.3rem;
+    }
+
+    .rescan-btn {
+      display: none;
+      width: 100%; margin-top: 0.25rem;
+      background: #f3f4f6; color: #374151;
+      border: 1px solid #e5e7eb; border-radius: 0.5rem;
+      font-size: 0.8rem; font-weight: 600;
+      padding: 0.55rem; cursor: pointer;
+    }
+    .rescan-btn.show { display: block; }
+
+    .preview-area {
+      display: none;
+      margin-bottom: 1rem;
+    }
+    .preview-area.show { display: block; }
+    .preview-media-wrapper {
+      width: 100%; aspect-ratio: 1/1;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; position: relative; overflow: hidden;
+      border-radius: 0.75rem;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+    }
+    .preview-media-wrapper img,
+    .preview-media-wrapper video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .preview-media-wrapper pre {
+      font-size: 0.7rem; padding: 0.6rem; margin: 0;
+      white-space: pre-wrap; word-break: break-all; overflow: auto;
+      width: 100%; height: 100%; color: #374151;
+      font-family: 'DM Mono', monospace;
+    }
+    .preview-download-btn {
+      width: 100%; margin-top: 0.6rem;
+      display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+      padding: 0.6rem; border-radius: 0.5rem; border: none; cursor: pointer;
+      background: linear-gradient(135deg,#2563eb,#60a5fa); color: white;
+      font-size: 0.85rem; font-weight: 700;
+    }
+
+    #fullscreenOverlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(8px);
+      z-index: 99000;
+      display: none; align-items: center; justify-content: center;
+      padding: 1.5rem;
+    }
+    #fullscreenOverlay.show { display: flex; }
+    #fullscreenContent { display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; width: 100%; height: 100%; touch-action: none; }
+    #fullscreenContent img { max-width: 100%; max-height: 90vh; border-radius: 10px; object-fit: contain; cursor: zoom-in; transition: transform 0.1s ease; transform-origin: center center; user-select: none; -webkit-user-drag: none; }
+    #fullscreenContent video { max-width: 100%; max-height: 90vh; border-radius: 10px; object-fit: contain; }
+    #fullscreenZoomHint {
+      position: fixed; bottom: 1.4rem; left: 50%; transform: translateX(-50%);
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.7); font-size: 0.72rem; font-weight: 500;
+      padding: 0.35rem 0.9rem; border-radius: 999px; pointer-events: none; transition: opacity 0.5s;
+    }
+    #fullscreenZoomHint.hidden { opacity: 0; }
+    #fullscreenClose {
+      position: fixed; top: 1.1rem; right: 1.1rem; width: 36px; height: 36px;
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 9px; color: white; font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; z-index: 99001;
+    }
+    #fullscreenTextBox {
+      background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 1.5rem;
+      font-size: 0.84rem; max-width: 700px; width: 100%; max-height: 80vh; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all; font-family: 'DM Mono', monospace; line-height: 1.6;
     }
   </style>
 </head>
@@ -207,7 +207,7 @@
     <div class="card">
 
       <div class="icon-wrap"><i class="fa-solid fa-qrcode"></i></div>
-      <h1>Pindai QR untuk Preview</h1>
+      <h1>Scan QR</h1>
 
       <div class="scan-zone" id="scanZone">
         <div id="qrReader"></div>
@@ -226,297 +226,435 @@
         <i class="fa-solid fa-circle-notch spinner-icon"></i> Mendekripsi…
       </div>
 
-      <div id="previewArea"></div>
+      <div class="preview-area" id="previewArea"></div>
+
+      <button class="rescan-btn" id="rescanBtn"><i class="fa-solid fa-rotate-left"></i> Scan Lagi</button>
 
       <div class="footer"><i class="fa-solid fa-shield-halved"></i> Akses terlindungi</div>
 
     </div>
   </div>
 
-  <div id="fsOverlay">
-    <button id="fsClose"><i class="fa-solid fa-xmark"></i></button>
-    <div id="fsContent"></div>
+  <div id="fullscreenOverlay">
+    <button id="fullscreenClose" title="Tutup"><i class="fa-solid fa-xmark"></i></button>
+    <div id="fullscreenContent"></div>
+    <div id="fullscreenZoomHint">Cubit atau scroll untuk zoom · Geser untuk pindah</div>
   </div>
 
   <script>
-    (function(){
-      const msgEl           = document.getElementById('loginMsg');
-      const spinner         = document.getElementById('redirectSpinner');
-      const scanZone        = document.getElementById('scanZone');
-      const scanPlaceholder = document.getElementById('scanPlaceholder');
-      const startBtn        = document.getElementById('startBtn');
-      const reticle         = document.getElementById('reticle');
-      const previewArea     = document.getElementById('previewArea');
-      const fsOverlay       = document.getElementById('fsOverlay');
-      const fsContent       = document.getElementById('fsContent');
-      const fsClose         = document.getElementById('fsClose');
+  (function(){
+    const QR_MASTER_PASSWORD = 'GANTI_DENGAN_PASSWORD_QR';
 
-      let qrInstance = null;
-      let isBusy = false;
+    const msgEl = document.getElementById('loginMsg');
+    const spinner = document.getElementById('redirectSpinner');
+    const scanZone = document.getElementById('scanZone');
+    const scanPlaceholder = document.getElementById('scanPlaceholder');
+    const startBtn = document.getElementById('startBtn');
+    const reticle = document.getElementById('reticle');
+    const previewArea = document.getElementById('previewArea');
+    const rescanBtn = document.getElementById('rescanBtn');
 
-      function showMsg(text, type){ msgEl.textContent = text; msgEl.className = 'has-msg ' + type; }
-      function clearMsg(){ msgEl.textContent = ''; msgEl.className = ''; }
+    let qrInstance = null;
+    let isBusy = false;
 
-      function startScanner(){
-        scanPlaceholder.classList.add('hidden');
-        scanZone.classList.add('active');
-        clearMsg();
+    function showMsg(text, type){ msgEl.textContent = text; msgEl.className = 'has-msg ' + type; }
+    function clearMsg(){ msgEl.textContent = ''; msgEl.className = ''; }
 
-        qrInstance = new Html5Qrcode('qrReader');
-        const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+    function startScanner(){
+      previewArea.classList.remove('show');
+      previewArea.innerHTML = '';
+      rescanBtn.classList.remove('show');
+      scanZone.style.display = 'flex';
+      scanZone.classList.remove('captured');
+      reticle.classList.remove('show');
+      scanPlaceholder.classList.add('hidden');
+      scanZone.classList.add('active');
+      clearMsg();
 
-        qrInstance.start(
-          { facingMode: 'environment' },
-          config,
-          onScanSuccess,
-          () => {}
-        ).catch(() => {
-          scanPlaceholder.classList.remove('hidden');
-          scanZone.classList.remove('active');
-          showMsg('Tidak bisa mengakses kamera. Izinkan akses kamera lalu coba lagi.', 'error');
-        });
-      }
+      qrInstance = new Html5Qrcode('qrReader');
+      const config = { fps: 10, qrbox: { width: 220, height: 220 } };
 
-      function stopScanner(){
-        if (qrInstance) return qrInstance.stop().catch(() => {});
-        return Promise.resolve();
-      }
-
-      function resetScan(){
-        scanZone.classList.remove('captured');
-        reticle.classList.remove('show');
-        previewArea.classList.remove('show');
-        previewArea.innerHTML = '';
-        clearMsg();
-        isBusy = false;
-        startScanner();
-      }
-
-      function onScanSuccess(decodedText){
-        if (isBusy) return;
-        isBusy = true;
-
-        reticle.classList.add('show');
-        stopScanner().then(() => {
-          scanZone.classList.add('captured');
-          handleScannedText(String(decodedText || '').trim());
-        });
-      }
-
-      // QR hanya berisi URL file (sama seperti generator QR di beranda.html).
-      // Password AES diambil dari tabel Supabase 'links' berdasarkan URL tsb.
-      async function lookupPassword(url){
-        const { data, error } = await window.__supabase
-          .from('links').select('password').eq('url', url).single();
-        if(error || !data) throw new Error('URL tidak ditemukan di database.');
-        if(!data.password) throw new Error('Password AES tidak ditemukan untuk URL ini.');
-        return data.password;
-      }
-
-      async function handleScannedText(text){
-        const url = text.trim();
-        if(!url.startsWith('http')){
-          showMsg('Kode QR tidak berisi URL yang valid.', 'error');
-          setTimeout(resetScan, 1600);
-          return;
-        }
-
-        spinner.classList.add('show');
-        showMsg('', '');
-        try{
-          const password = await lookupPassword(url);
-          const response = await fetch(url);
-          if(!response.ok) throw new Error(`Gagal memuat file (${response.status})`);
-          const encryptedText = await response.text();
-          const decrypted = await decryptAES(encryptedText.trim(), password);
-          const cleaned = decrypted.trim();
-
-          spinner.classList.remove('show');
-          showMsg('✓ Berhasil didekripsi.', 'success');
-          renderPreview(cleaned);
-        }catch(err){
-          spinner.classList.remove('show');
-          showMsg(err.message, 'error');
-          setTimeout(resetScan, 1800);
-        }
-      }
-
-      // ===== AES decrypt (sama seperti beranda.html) =====
-      async function decryptAES(ciphertext, password){
-        const clean = ciphertext.trim();
-        if(typeof CryptoJS === 'undefined') throw new Error('CryptoJS tidak tersedia.');
-        try{
-          const bytes = CryptoJS.AES.decrypt(clean, password);
-          if(bytes && bytes.sigBytes > 0){
-            try{
-              const resultUtf8 = bytes.toString(CryptoJS.enc.Utf8);
-              if(resultUtf8 && resultUtf8.length > 0) return resultUtf8;
-            }catch(e){}
-            const resultBase64 = bytes.toString(CryptoJS.enc.Base64);
-            if(resultBase64 && resultBase64.length > 0) return resultBase64;
-          }
-        }catch(e){}
-        throw new Error('Dekripsi AES gagal. Periksa password atau format file.');
-      }
-
-      // ===== Base64 & MIME helpers (sama seperti beranda.html) =====
-      function normalizeBase64(b64){
-        if(!b64 || typeof b64 !== 'string') return '';
-        let s = b64.replace(/\s+/g,'');
-        const m = s.match(/^data:.*;base64,(.*)$/i);
-        if(m) s = m[1];
-        s = s.replace(/-/g,'+').replace(/_/g,'/');
-        const pad = s.length % 4;
-        if(pad === 2) s += '==';
-        else if(pad === 3) s += '=';
-        return s;
-      }
-      function isBase64String(s){
-        if(!s || typeof s !== 'string') return false;
-        const c = normalizeBase64(s);
-        return c.length % 4 === 0 && /^[A-Za-z0-9+/=]+$/.test(c);
-      }
-      function getMimeFromBase64Sample(b64){
-        try{
-          const cleaned = normalizeBase64(b64).slice(0, 2000);
-          if(!cleaned) return null;
-          const bin = atob(cleaned);
-          const c0 = bin.charCodeAt(0), c1 = bin.charCodeAt(1);
-          if(c0===0x89 && bin[1]==='P' && bin[2]==='N' && bin[3]==='G') return 'image/png';
-          if(c0===0xFF && c1===0xD8) return 'image/jpeg';
-          if(bin.startsWith('GIF87a') || bin.startsWith('GIF89a')) return 'image/gif';
-          if(bin.trim().startsWith('<svg')) return 'image/svg+xml';
-          if(bin.startsWith('%PDF')) return 'application/pdf';
-          if(bin.startsWith('ID3') || (c0===0xFF && (c1&0xE0)===0xE0)) return 'audio/mpeg';
-          if(bin.indexOf('ftyp')!==-1) return 'video/mp4';
-          if(bin.toLowerCase().indexOf('webm')!==-1) return 'video/webm';
-          const prefix = normalizeBase64(b64).slice(0, 8);
-          if(prefix.startsWith('iVBOR') || prefix.startsWith('iVBORw0K')) return 'image/png';
-          if(prefix.startsWith('/9j/')) return 'image/jpeg';
-          if(prefix.startsWith('R0lG')) return 'image/gif';
-          if(prefix.startsWith('JVBER')) return 'application/pdf';
-          return null;
-        }catch(e){ return null; }
-      }
-      function base64ToBlob(base64, mime){
-        const binary = atob(base64);
-        const arr = new Uint8Array(binary.length);
-        for(let i=0;i<binary.length;i++) arr[i] = binary.charCodeAt(i);
-        return new Blob([arr], { type: mime || 'application/octet-stream' });
-      }
-
-      // ===== Render preview (sama seperti beranda.html) =====
-      function renderPreview(cleaned){
-        previewArea.innerHTML = '';
-        previewArea.classList.add('show');
-
-        let mime = getMimeFromBase64Sample(cleaned);
-        if(!mime){
-          if(cleaned.startsWith('iVBOR') || cleaned.startsWith('iVBORw0K')) mime = 'image/png';
-          else if(cleaned.startsWith('/9j/')) mime = 'image/jpeg';
-          else if(cleaned.startsWith('R0lG')) mime = 'image/gif';
-          else if(cleaned.startsWith('JVBER')) mime = 'application/pdf';
-        }
-
-        const ext = mime ? (mime.split('/')[1] || 'bin').replace('jpeg','jpg') : 'txt';
-        const filename = `hasil-scan.${ext}`;
-        const looksLikeBase64 = isBase64String(cleaned);
-
-        const wrapper = document.createElement('div');
-        wrapper.className = 'preview-media-wrapper';
-        previewArea.appendChild(wrapper);
-
-        let blob = null, objUrl = null;
-
-        if(looksLikeBase64 && mime){
-          const norm = normalizeBase64(cleaned);
-          try{ blob = base64ToBlob(norm, mime); }catch(e){}
-          objUrl = blob ? URL.createObjectURL(blob) : `data:${mime};base64,${norm}`;
-
-          if(mime.startsWith('image/')){
-            const img = document.createElement('img');
-            img.src = objUrl;
-            wrapper.appendChild(img);
-            wrapper.addEventListener('click', () => openFullscreen('image', objUrl));
-          }else if(mime.startsWith('video/')){
-            const video = document.createElement('video');
-            video.src = objUrl; video.controls = true; video.setAttribute('playsinline','');
-            wrapper.appendChild(video);
-            wrapper.addEventListener('click', (e) => { if(e.target !== video) openFullscreen('video', objUrl); });
-          }else if(mime.startsWith('audio/')){
-            const audio = document.createElement('audio');
-            audio.src = objUrl; audio.controls = true;
-            wrapper.appendChild(audio);
-            wrapper.style.cursor = 'default';
-          }else if(mime === 'application/pdf'){
-            const iframe = document.createElement('iframe');
-            iframe.src = objUrl;
-            wrapper.appendChild(iframe);
-            wrapper.style.cursor = 'default';
-          }else{
-            let displayText = cleaned;
-            try{ displayText = atob(norm).slice(0, 500); }catch(e){}
-            const pre = document.createElement('pre');
-            pre.textContent = displayText + (displayText.length >= 500 ? '\n...(terpotong)...' : '');
-            wrapper.appendChild(pre);
-            wrapper.addEventListener('click', () => openFullscreen('text', null, displayText));
-          }
-        }else{
-          const pre = document.createElement('pre');
-          pre.textContent = cleaned.slice(0,1000) + (cleaned.length>1000 ? '\n...(terpotong)...' : '');
-          wrapper.appendChild(pre);
-          wrapper.addEventListener('click', () => openFullscreen('text', null, cleaned));
-        }
-
-        const dlBtn = document.createElement('button');
-        dlBtn.className = 'preview-download-btn';
-        dlBtn.innerHTML = '<i class="fa-solid fa-download"></i> Unduh';
-        dlBtn.addEventListener('click', () => {
-          const useBlob = blob || new Blob([cleaned], { type: 'text/plain' });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(useBlob);
-          a.download = filename;
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        });
-        previewArea.appendChild(dlBtn);
-
-        const againBtn = document.createElement('button');
-        againBtn.className = 'scan-again-btn';
-        againBtn.innerHTML = '<i class="fa-solid fa-qrcode"></i> Pindai Lagi';
-        againBtn.addEventListener('click', resetScan);
-        previewArea.appendChild(againBtn);
-      }
-
-      // ===== Fullscreen (sama seperti beranda.html) =====
-      function openFullscreen(mediaType, src, text){
-        fsContent.innerHTML = '';
-        if(mediaType === 'image'){
-          const img = document.createElement('img');
-          img.src = src;
-          fsContent.appendChild(img);
-        }else if(mediaType === 'video'){
-          const video = document.createElement('video');
-          video.src = src; video.controls = true; video.autoplay = true;
-          fsContent.appendChild(video);
-        }else{
-          const box = document.createElement('div');
-          box.style.cssText = 'background:#0f172a;color:#e2e8f0;border-radius:10px;padding:1.5rem;font-size:0.84rem;max-width:700px;width:100%;max-height:80vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all;font-family:monospace;line-height:1.6;';
-          box.textContent = text || src;
-          fsContent.appendChild(box);
-        }
-        fsOverlay.classList.add('show');
-      }
-      fsClose.addEventListener('click', () => {
-        fsOverlay.classList.remove('show');
-        const vid = fsContent.querySelector('video');
-        if(vid){ vid.pause(); vid.src=''; }
-        fsContent.innerHTML = '';
+      qrInstance.start(
+        { facingMode: 'environment' },
+        config,
+        onScanSuccess,
+        () => {}
+      ).catch(() => {
+        scanPlaceholder.classList.remove('hidden');
+        scanZone.classList.remove('active');
+        showMsg('Tidak bisa mengakses kamera. Izinkan akses kamera lalu coba lagi.', 'error');
       });
-      fsOverlay.addEventListener('click', (e) => { if(e.target === fsOverlay) fsClose.click(); });
+    }
 
-      startBtn.addEventListener('click', startScanner);
-      startScanner();
-    })();
+    function stopScanner(){
+      if (qrInstance) return qrInstance.stop().catch(() => {});
+      return Promise.resolve();
+    }
+
+    function onScanSuccess(decodedText){
+      if (isBusy) return;
+      isBusy = true;
+      reticle.classList.add('show');
+      stopScanner().then(() => {
+        scanZone.classList.add('captured');
+        processQr(String(decodedText || '').trim());
+      });
+    }
+
+    startBtn.addEventListener('click', startScanner);
+    rescanBtn.addEventListener('click', () => { isBusy = false; startScanner(); });
+
+    function normalizeBase64(b64){if(!b64||typeof b64!=='string')return'';let s=b64.replace(/\s+/g,'');const m=s.match(/^data:.*;base64,(.*)$/i);if(m)s=m[1];s=s.replace(/-/g,'+').replace(/_/g,'/');const pad=s.length%4;if(pad===2)s+='==';else if(pad===3)s+='=';return s;}
+    function isBase64String(s){if(!s||typeof s!=='string')return false;const c=normalizeBase64(s);return c.length%4===0&&/^[A-Za-z0-9+/=]+$/.test(c);}
+    function getMimeFromBase64Sample(b64){try{const cleaned=normalizeBase64(b64).slice(0,2000);if(!cleaned)return null;const bin=atob(cleaned);const c0=bin.charCodeAt(0),c1=bin.charCodeAt(1);if(c0===0x89&&bin[1]==='P'&&bin[2]==='N'&&bin[3]==='G')return'image/png';if(c0===0xFF&&c1===0xD8)return'image/jpeg';if(bin.startsWith('GIF87a')||bin.startsWith('GIF89a'))return'image/gif';if(bin.trim().startsWith('<svg'))return'image/svg+xml';if(bin.indexOf('ftyp')!==-1)return'video/mp4';if(bin.toLowerCase().indexOf('webm')!==-1)return'video/webm';const prefix=normalizeBase64(b64).slice(0,8);if(prefix.startsWith('iVBOR')||prefix.startsWith('iVBORw0K'))return'image/png';if(prefix.startsWith('/9j/'))return'image/jpeg';if(prefix.startsWith('R0lG'))return'image/gif';return null;}catch(e){return null;}}
+    function base64ToBlob(base64,mime){const binary=atob(base64);const len=binary.length;const arr=new Uint8Array(len);for(let i=0;i<len;i++)arr[i]=binary.charCodeAt(i);return new Blob([arr],{type:mime||'application/octet-stream'});}
+
+    async function decryptAES(ciphertext, password){
+      const clean = ciphertext.trim();
+      if(typeof CryptoJS === 'undefined') throw new Error('CryptoJS tidak tersedia.');
+      try{
+        const bytes = CryptoJS.AES.decrypt(clean, password);
+        if(bytes && bytes.sigBytes > 0){
+          try{
+            const resultUtf8 = bytes.toString(CryptoJS.enc.Utf8);
+            if(resultUtf8 && resultUtf8.length > 0) return resultUtf8;
+          }catch(utf8Err){}
+          const resultBase64 = bytes.toString(CryptoJS.enc.Base64);
+          if(resultBase64 && resultBase64.length > 0) return resultBase64;
+        }
+      }catch(e){}
+      throw new Error('Dekripsi AES gagal. Periksa password di database atau format file enkripsi.');
+    }
+
+    function parseQrPayload(text){
+      try{
+        const obj = JSON.parse(text);
+        if(obj && obj.url) return { url: obj.url, password: obj.password || obj.pass || '' };
+      }catch(e){}
+      try{
+        const params = new URLSearchParams(text.includes('?') ? text.split('?')[1] : text);
+        const url = params.get('url');
+        const password = params.get('password');
+        if(url) return { url, password: password || '' };
+      }catch(e){}
+      const pipeParts = text.split('|');
+      if(pipeParts.length >= 2 && pipeParts[0].startsWith('http')) return { url: pipeParts[0], password: pipeParts[1] };
+      return null;
+    }
+
+    async function processQr(rawText){
+      spinner.classList.add('show');
+      clearMsg();
+      try{
+        let payloadText = rawText;
+        try{
+          payloadText = await decryptAES(rawText, QR_MASTER_PASSWORD);
+        }catch(e){
+          payloadText = rawText;
+        }
+
+        const payload = parseQrPayload(payloadText) || parseQrPayload(rawText);
+        if(!payload || !payload.url) throw new Error('QR_INVALID');
+
+        await fetchAndDecryptFile(payload.url, payload.password);
+      }catch(err){
+        spinner.classList.remove('show');
+        if(err.message === 'QR_INVALID'){
+          showMsg('Kode QR tidak valid.', 'error');
+        }else{
+          showMsg('Password AES salah.', 'error');
+        }
+        rescanBtn.classList.add('show');
+      }
+    }
+
+    async function fetchAndDecryptFile(url, password){
+      if(!url || !url.startsWith('http')) throw new Error('URL_INVALID');
+
+      let response;
+      try{
+        response = await fetch(url);
+      }catch(e){
+        spinner.classList.remove('show');
+        showMsg('Gagal mengambil file.', 'error');
+        rescanBtn.classList.add('show');
+        return;
+      }
+      if(!response.ok){
+        spinner.classList.remove('show');
+        showMsg('Gagal mengambil file.', 'error');
+        rescanBtn.classList.add('show');
+        return;
+      }
+
+      const encryptedText = await response.text();
+
+      let decrypted;
+      try{
+        if(!password) throw new Error('NO_PASSWORD');
+        decrypted = await decryptAES(encryptedText.trim(), password);
+      }catch(e){
+        spinner.classList.remove('show');
+        showMsg('Password AES salah.', 'error');
+        rescanBtn.classList.add('show');
+        return;
+      }
+
+      const cleaned = (decrypted || '').trim();
+      if(!cleaned){
+        spinner.classList.remove('show');
+        showMsg('File tidak dapat didekripsi.', 'error');
+        rescanBtn.classList.add('show');
+        return;
+      }
+
+      spinner.classList.remove('show');
+      showMsg('✓ Berhasil didekripsi.', 'success');
+      scanZone.style.display = 'none';
+      renderPreview(cleaned);
+      rescanBtn.classList.add('show');
+    }
+
+    function renderPreview(cleaned){
+      previewArea.innerHTML = '';
+      previewArea.classList.add('show');
+
+      const mimeHint = getMimeFromBase64Sample(cleaned);
+      let mime = mimeHint;
+      if(!mime){
+        if(cleaned.startsWith('iVBOR') || cleaned.startsWith('iVBORw0K')) mime = 'image/png';
+        else if(cleaned.startsWith('/9j/')) mime = 'image/jpeg';
+        else if(cleaned.startsWith('R0lG')) mime = 'image/gif';
+        else if(cleaned.startsWith('AAAB') || cleaned.startsWith('AAAM')) mime = 'video/mp4';
+        else if(cleaned.startsWith('GkXf')) mime = 'video/webm';
+      }
+
+      const ext = mime ? (mime.split('/')[1] || 'bin').replace('jpeg','jpg') : 'txt';
+      const filename = `dekripsi-${Date.now()}.${ext}`;
+
+      const looksLikeBase64 = isBase64String(cleaned);
+      const mediaWrapper = document.createElement('div');
+      mediaWrapper.className = 'preview-media-wrapper';
+      previewArea.appendChild(mediaWrapper);
+
+      let blob = null;
+
+      if(looksLikeBase64 && mime){
+        const norm = normalizeBase64(cleaned);
+        try{ blob = base64ToBlob(norm, mime); }catch(e){}
+
+        if(mime.startsWith('image/')){
+          const img = document.createElement('img');
+          const objUrl = blob ? URL.createObjectURL(blob) : `data:${mime};base64,${norm}`;
+          img.src = objUrl;
+          img.alt = 'Preview';
+          mediaWrapper.appendChild(img);
+          mediaWrapper.addEventListener('click', () => openFullscreen('image', objUrl));
+
+        }else if(mime.startsWith('video/')){
+          const video = document.createElement('video');
+          video.controls = true;
+          video.setAttribute('playsinline','');
+          video.autoplay = true;
+          video.loop = true;
+          video.muted = true;
+          const objUrl = blob ? URL.createObjectURL(blob) : `data:${mime};base64,${norm}`;
+          video.src = objUrl;
+          video.addEventListener('loadeddata', () => { video.play().catch(()=>{}); });
+          mediaWrapper.appendChild(video);
+          mediaWrapper.addEventListener('click', (e) => {
+            if(e.target === video) return;
+            openFullscreen('video', objUrl);
+          });
+
+        }else if(mime.startsWith('audio/')){
+          mediaWrapper.style.cursor = 'default';
+          const audio = document.createElement('audio');
+          audio.controls = true;
+          audio.style.width = '90%';
+          const objUrl = blob ? URL.createObjectURL(blob) : `data:${mime};base64,${norm}`;
+          audio.src = objUrl;
+          mediaWrapper.appendChild(audio);
+
+        }else if(mime === 'application/pdf'){
+          mediaWrapper.style.cursor = 'default';
+          const iframe = document.createElement('iframe');
+          iframe.style.width = '100%';
+          iframe.style.height = '100%';
+          iframe.style.border = 'none';
+          const objUrl = blob ? URL.createObjectURL(blob) : `data:${mime};base64,${norm}`;
+          iframe.src = objUrl;
+          mediaWrapper.appendChild(iframe);
+
+        }else{
+          let displayText = cleaned;
+          try{ displayText = atob(norm).slice(0, 500); }catch(e){}
+          const pre = document.createElement('pre');
+          pre.textContent = displayText + (displayText.length >= 500 ? '\n...(terpotong)...' : '');
+          mediaWrapper.appendChild(pre);
+          mediaWrapper.addEventListener('click', () => openFullscreen('text', null, displayText));
+        }
+
+      }else{
+        const pre = document.createElement('pre');
+        pre.textContent = cleaned.slice(0,1000) + (cleaned.length>1000 ? '\n...(terpotong)...' : '');
+        mediaWrapper.appendChild(pre);
+        mediaWrapper.addEventListener('click', () => openFullscreen('text', null, cleaned));
+        blob = new Blob([cleaned], { type: 'text/plain' });
+      }
+
+      const dlBtn = document.createElement('button');
+      dlBtn.className = 'preview-download-btn';
+      dlBtn.innerHTML = '<i class="fa-solid fa-download"></i> Unduh';
+      dlBtn.addEventListener('click', () => {
+        const useBlob = blob || new Blob([cleaned], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(useBlob);
+        a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      });
+      previewArea.appendChild(dlBtn);
+    }
+
+    let fsZoom = 1, fsPanX = 0, fsPanY = 0;
+    let fsDragging = false, fsDragStartX = 0, fsDragStartY = 0, fsPanStartX = 0, fsPanStartY = 0;
+    let fsPinchDist = 0;
+
+    function openFullscreen(mediaType, src, text){
+      const overlay = document.getElementById('fullscreenOverlay');
+      const content = document.getElementById('fullscreenContent');
+      const hint = document.getElementById('fullscreenZoomHint');
+      content.innerHTML = '';
+      fsZoom = 1; fsPanX = 0; fsPanY = 0;
+      if(mediaType === 'image'){
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = 'Fullscreen';
+        content.appendChild(img);
+        if(hint){ hint.classList.remove('hidden'); setTimeout(()=>hint.classList.add('hidden'), 2800); }
+      }else if(mediaType === 'video'){
+        const video = document.createElement('video');
+        video.src = src;
+        video.controls = true;
+        video.autoplay = true;
+        content.appendChild(video);
+        if(hint) hint.classList.add('hidden');
+      }else{
+        const box = document.createElement('div');
+        box.id = 'fullscreenTextBox';
+        box.textContent = text || src;
+        content.appendChild(box);
+        if(hint) hint.classList.add('hidden');
+      }
+      overlay.classList.add('show');
+    }
+
+    document.getElementById('fullscreenClose').addEventListener('click', () => {
+      const overlay = document.getElementById('fullscreenOverlay');
+      overlay.classList.remove('show');
+      const content = document.getElementById('fullscreenContent');
+      const vid = content.querySelector('video');
+      if(vid){ vid.pause(); vid.src = ''; }
+      content.innerHTML = '';
+      fsZoom = 1; fsPanX = 0; fsPanY = 0;
+    });
+    document.getElementById('fullscreenOverlay').addEventListener('click', (e) => {
+      if(e.target === document.getElementById('fullscreenOverlay')) document.getElementById('fullscreenClose').click();
+    });
+
+    function applyFsTransform(img){
+      img.style.transform = `translate(${fsPanX}px, ${fsPanY}px) scale(${fsZoom})`;
+      img.style.cursor = fsZoom > 1 ? 'grab' : 'zoom-in';
+    }
+    function clampFsPan(img){
+      if(!img) return;
+      const maxPanX = Math.max(0, (img.naturalWidth * fsZoom - window.innerWidth) / 2);
+      const maxPanY = Math.max(0, (img.naturalHeight * fsZoom - window.innerHeight) / 2);
+      fsPanX = Math.max(-maxPanX, Math.min(maxPanX, fsPanX));
+      fsPanY = Math.max(-maxPanY, Math.min(maxPanY, fsPanY));
+    }
+    function getFsImg(){ return document.querySelector('#fullscreenContent img'); }
+    function hideFsHint(){ const hint = document.getElementById('fullscreenZoomHint'); if(hint) hint.classList.add('hidden'); }
+
+    document.getElementById('fullscreenOverlay').addEventListener('wheel', (e) => {
+      const img = getFsImg(); if(!img) return;
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.15 : -0.15;
+      fsZoom = Math.max(1, Math.min(6, fsZoom + delta));
+      if(fsZoom <= 1){ fsZoom=1; fsPanX=0; fsPanY=0; } else { clampFsPan(img); }
+      applyFsTransform(img);
+      hideFsHint();
+    }, {passive:false});
+
+    document.getElementById('fullscreenOverlay').addEventListener('mousedown', (e) => {
+      const img = getFsImg(); if(!img || fsZoom <= 1) return;
+      if(e.target === document.getElementById('fullscreenClose')) return;
+      fsDragging = true;
+      fsDragStartX = e.clientX; fsDragStartY = e.clientY;
+      fsPanStartX = fsPanX; fsPanStartY = fsPanY;
+      img.style.cursor = 'grabbing';
+      e.stopPropagation();
+    });
+    document.addEventListener('mousemove', (e) => {
+      if(!fsDragging) return;
+      const img = getFsImg(); if(!img) return;
+      fsPanX = fsPanStartX + (e.clientX - fsDragStartX);
+      fsPanY = fsPanStartY + (e.clientY - fsDragStartY);
+      clampFsPan(img);
+      applyFsTransform(img);
+    });
+    document.addEventListener('mouseup', () => { fsDragging=false; const img=getFsImg(); if(img&&fsZoom>1) img.style.cursor='grab'; });
+
+    document.getElementById('fullscreenOverlay').addEventListener('touchstart', (e) => {
+      const img = getFsImg(); if(!img) return;
+      if(e.touches.length === 2){
+        fsPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        e.preventDefault();
+      }else if(e.touches.length === 1 && fsZoom > 1){
+        fsDragging = true;
+        fsDragStartX = e.touches[0].clientX; fsDragStartY = e.touches[0].clientY;
+        fsPanStartX = fsPanX; fsPanStartY = fsPanY;
+        e.preventDefault();
+      }
+    }, {passive:false});
+
+    document.getElementById('fullscreenOverlay').addEventListener('touchmove', (e) => {
+      const img = getFsImg(); if(!img) return;
+      if(e.touches.length === 2){
+        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        const ratio = dist / fsPinchDist;
+        fsZoom = Math.max(1, Math.min(6, fsZoom * ratio));
+        fsPinchDist = dist;
+        if(fsZoom <= 1){ fsZoom=1; fsPanX=0; fsPanY=0; } else clampFsPan(img);
+        applyFsTransform(img);
+        hideFsHint();
+        e.preventDefault();
+      }else if(e.touches.length === 1 && fsDragging){
+        fsPanX = fsPanStartX + (e.touches[0].clientX - fsDragStartX);
+        fsPanY = fsPanStartY + (e.touches[0].clientY - fsDragStartY);
+        clampFsPan(img);
+        applyFsTransform(img);
+        e.preventDefault();
+      }
+    }, {passive:false});
+
+    document.getElementById('fullscreenOverlay').addEventListener('touchend', () => { fsDragging=false; });
+
+    let fsLastTap = 0;
+    document.getElementById('fullscreenOverlay').addEventListener('touchend', (e) => {
+      const img = getFsImg(); if(!img) return;
+      const now = Date.now();
+      if(now - fsLastTap < 280){
+        if(fsZoom > 1){ fsZoom=1; fsPanX=0; fsPanY=0; } else { fsZoom = 2.5; }
+        applyFsTransform(img);
+        hideFsHint();
+        e.preventDefault();
+      }
+      fsLastTap = now;
+    });
+
+    startScanner();
+  })();
   </script>
 </body>
 </html>
