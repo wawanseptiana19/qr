@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: #f8f9fa;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #1a1a1a;
+    }
+
+    .stage {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 1rem;
+      padding: 2.5rem 2rem;
+      width: 100%; max-width: 380px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+      animation: fadeUp 0.4s ease both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Icon */
+    .icon-wrap {
+      width: 56px; height: 56px;
+      background: #f3f4f6;
+      border-radius: 0.875rem;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.5rem;
+    }
+    .icon-wrap i { font-size: 1.4rem; color: #6b7280; }
+
+    /* Title */
+    h1 {
+      text-align: center;
+      font-size: 1.25rem; font-weight: 700;
+      color: #111827; letter-spacing: -0.02em;
+      margin-bottom: 1.75rem;
+    }
+
+    /* Camera / preview zone */
+    .scan-zone {
+      position: relative;
+      border: 1.5px dashed #d1d5db;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      background: #0b0b0c;
+      aspect-ratio: 1 / 1;
+      margin-bottom: 1rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .scan-zone.active { border-color: #9ca3af; }
+
+    #qrReader { width: 100%; height: 100%; }
+    #qrReader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+
+    /* Overlay before camera starts */
+    .scan-placeholder {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.6rem; color: #9ca3af; text-align: center; padding: 1rem;
+      background: #0b0b0c;
+      transition: opacity 0.25s;
+      z-index: 2;
+    }
+    .scan-placeholder i { font-size: 1.6rem; }
+    .scan-placeholder .ph-label { font-size: 0.8rem; font-weight: 500; }
+    .scan-placeholder .ph-btn {
+      margin-top: 0.4rem;
+      background: #ffffff10; border: 1px solid #ffffff30;
+      color: #e5e7eb; font-size: 0.75rem; font-weight: 600;
+      padding: 0.45rem 0.9rem; border-radius: 0.5rem; cursor: pointer;
+    }
+    .scan-placeholder.hidden { display: none; }
+
+    /* Scan reticle frame drawn over active camera */
+    .reticle {
+      position: absolute; inset: 12%;
+      border: 2px solid #22c55e;
+      border-radius: 0.75rem;
+      opacity: 0; pointer-events: none;
+      box-shadow: 0 0 0 2000px rgba(0,0,0,0.25);
+      transition: opacity 0.2s;
+      z-index: 3;
+    }
+    .reticle.show { opacity: 1; }
+
+    /* Frozen frame after successful capture */
+    .scan-zone.captured #qrReader { filter: brightness(0.55); }
+    .capture-check {
+      position: absolute; inset: 0;
+      display: none; align-items: center; justify-content: center;
+      z-index: 4;
+    }
+    .capture-check i { font-size: 2.4rem; color: #22c55e; }
+    .scan-zone.captured .capture-check { display: flex; }
+
+    /* Message */
+    #loginMsg {
+      font-size: 0.8rem; font-weight: 500;
+      border-radius: 0.5rem; padding: 0;
+      transition: all 0.25s; text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    #loginMsg.has-msg { padding: 0.55rem 0.875rem; margin-bottom: 0.75rem; }
+    #loginMsg.error   { background: #fef2f2; color: #dc2626; }
+    #loginMsg.success { background: #f0fdf4; color: #16a34a; }
+
+    /* Redirect spinner */
+    .redirect-spinner {
+      display: none; align-items: center; justify-content: center;
+      gap: 0.4rem; font-size: 0.8rem; color: #16a34a; font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    .redirect-spinner.show { display: flex; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-icon { animation: spin 0.7s linear infinite; }
+
+    /* Already logged */
+    .already-logged {
+      display: none; background: #f0fdf4; border: 1px solid #bbf7d0;
+      border-radius: 0.625rem; padding: 0.6rem 0.875rem; text-align: center;
+      font-size: 0.8rem; color: #15803d; font-weight: 500; margin-bottom: 1rem;
+    }
+    .already-logged.show { display: block; }
+    .already-logged a { color: #15803d; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+    /* Footer */
+    .footer {
+      text-align: center; margin-top: 1.5rem;
+      font-size: 0.72rem; color: #d1d5db;
+      display: flex; align-items: center; justify-content: center; gap: 0.3rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="card">
+
+      <div class="icon-wrap"><i class="fa-solid fa-qrcode"></i></div>
+      <h1>Masuk</h1>
+
+      <div class="already-logged" id="alreadyLoggedBadge">
+        Anda sudah masuk. <a id="goToBerandaLink">Lanjut ke Beranda →</a>
+      </div>
+
+      <div class="scan-zone" id="scanZone">
+        <div id="qrReader"></div>
+        <div class="reticle" id="reticle"></div>
+        <div class="capture-check"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="scan-placeholder" id="scanPlaceholder">
+          <i class="fa-solid fa-camera"></i>
+          <div class="ph-label">Arahkan kamera ke kode QR untuk masuk</div>
+          <button class="ph-btn" id="startBtn">Aktifkan Kamera</button>
+        </div>
+      </div>
+
+      <div id="loginMsg" aria-live="polite"></div>
+
+      <div class="redirect-spinner" id="redirectSpinner">
+        <i class="fa-solid fa-circle-notch spinner-icon"></i> Mengalihkan…
+      </div>
+
+      <div class="footer"><i class="fa-solid fa-shield-halved"></i> Akses terlindungi</div>
+
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const SECRET_TEXT = 'YQDYIpjYnF7PZtDYs6e8yZJmGqTuB4rgZQSaenc618nmy4x095';
+      const LS_KEY      = 'dekrip_logged_in';
+      const REDIRECT_TO = 'beranda.html';
+
+      const msgEl           = document.getElementById('loginMsg');
+      const spinner         = document.getElementById('redirectSpinner');
+      const alreadyBadge    = document.getElementById('alreadyLoggedBadge');
+      const goLink          = document.getElementById('goToBerandaLink');
+      const scanZone        = document.getElementById('scanZone');
+      const scanPlaceholder = document.getElementById('scanPlaceholder');
+      const startBtn        = document.getElementById('startBtn');
+      const reticle         = document.getElementById('reticle');
+
+      let qrInstance = null;
+      let isBusy = false; // true while validating a scanned code (camera paused)
+
+      if (localStorage.getItem(LS_KEY) === 'true') {
+        alreadyBadge.classList.add('show');
+        goLink.addEventListener('click', () => { window.location.href = REDIRECT_TO; });
+        setTimeout(() => { window.location.href = REDIRECT_TO; }, 1500);
+        return; // no need to touch the camera
+      }
+
+      function showMsg(text, type){ msgEl.textContent = text; msgEl.className = 'has-msg ' + type; }
+      function clearMsg(){ msgEl.textContent = ''; msgEl.className = ''; }
+
+      function startScanner(){
+        scanPlaceholder.classList.add('hidden');
+        scanZone.classList.add('active');
+        clearMsg();
+
+        qrInstance = new Html5Qrcode('qrReader');
+        const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+
+        qrInstance.start(
+          { facingMode: 'environment' },
+          config,
+          onScanSuccess,
+          () => {} // ignore per-frame "not found" errors
+        ).catch(err => {
+          scanPlaceholder.classList.remove('hidden');
+          scanZone.classList.remove('active');
+          showMsg('Tidak bisa mengakses kamera. Izinkan akses kamera lalu coba lagi.', 'error');
+        });
+      }
+
+      function stopScanner(){
+        if (qrInstance) {
+          return qrInstance.stop().catch(() => {});
+        }
+        return Promise.resolve();
+      }
+
+      function onScanSuccess(decodedText){
+        if (isBusy) return; // debounce multiple detections while paused
+        isBusy = true;
+
+        // Freeze the camera as soon as a QR is detected
+        reticle.classList.add('show');
+        stopScanner().then(() => {
+          scanZone.classList.add('captured');
+
+          let text = String(decodedText || '').trim();
+          if (text === SECRET_TEXT) {
+            showMsg('✓ Berhasil masuk.', 'success');
+            localStorage.setItem(LS_KEY, 'true');
+            spinner.classList.add('show');
+            setTimeout(() => { window.location.href = REDIRECT_TO; }, 900);
+          } else {
+            showMsg('Kode QR tidak cocok. Coba lagi.', 'error');
+            setTimeout(() => {
+              scanZone.classList.remove('captured');
+              reticle.classList.remove('show');
+              isBusy = false;
+              startScanner();
+            }, 1400);
+          }
+        });
+      }
+
+      startBtn.addEventListener('click', startScanner);
+
+      // Try to start automatically; if permission is required, the placeholder
+      // with the manual button stays visible until the user taps it.
+      startScanner();
+    })();
+  </script>
+</body>
+</html>
