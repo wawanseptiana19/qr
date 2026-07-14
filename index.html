@@ -7,6 +7,13 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.44.2/+esm';
+    window.__supabase = createClient(
+      'https://qzdvdfebkzlwkhvxwsju.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6ZHZkZmVia3psd2todnh3c2p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcyMTA4OTksImV4cCI6MjA1Mjc4Njg5OX0.Z9XKmX49vu0kZwn6YMom8QeLNNdKQMXCIkxcIoHKQFs'
+    );
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -296,20 +303,20 @@
         });
       }
 
-      // ===== Format QR: "url|password" =====
-      function parseQrPayload(text){
-        const idx = text.indexOf('|');
-        if(idx === -1) return null;
-        const url = text.slice(0, idx).trim();
-        const password = text.slice(idx + 1).trim();
-        if(!url || !password) return null;
-        return { url, password };
+      // QR hanya berisi URL file (sama seperti generator QR di beranda.html).
+      // Password AES diambil dari tabel Supabase 'links' berdasarkan URL tsb.
+      async function lookupPassword(url){
+        const { data, error } = await window.__supabase
+          .from('links').select('password').eq('url', url).single();
+        if(error || !data) throw new Error('URL tidak ditemukan di database.');
+        if(!data.password) throw new Error('Password AES tidak ditemukan untuk URL ini.');
+        return data.password;
       }
 
       async function handleScannedText(text){
-        const payload = parseQrPayload(text);
-        if(!payload){
-          showMsg('Format kode QR tidak dikenali.', 'error');
+        const url = text.trim();
+        if(!url.startsWith('http')){
+          showMsg('Kode QR tidak berisi URL yang valid.', 'error');
           setTimeout(resetScan, 1600);
           return;
         }
@@ -317,11 +324,11 @@
         spinner.classList.add('show');
         showMsg('', '');
         try{
-          if(!payload.url.startsWith('http')) throw new Error('URL tidak valid.');
-          const response = await fetch(payload.url);
+          const password = await lookupPassword(url);
+          const response = await fetch(url);
           if(!response.ok) throw new Error(`Gagal memuat file (${response.status})`);
           const encryptedText = await response.text();
-          const decrypted = await decryptAES(encryptedText.trim(), payload.password);
+          const decrypted = await decryptAES(encryptedText.trim(), password);
           const cleaned = decrypted.trim();
 
           spinner.classList.remove('show');
