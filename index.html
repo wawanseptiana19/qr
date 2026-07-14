@@ -243,7 +243,8 @@
 
   <script>
   (function(){
-    const QR_MASTER_PASSWORD = 'GANTI_DENGAN_PASSWORD_QR';
+    const SUPABASE_URL = 'https://qzdvdfebkzlwkhvxwsju.supabase.co/rest/v1/';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6ZHZkZmVia3psd2todnh3c2p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcyMTA4OTksImV4cCI6MjA1Mjc4Njg5OX0.Z9XKmX49vu0kZwn6YMom8QeLNNdKQMXCIkxcIoHKQFs';
 
     const msgEl = document.getElementById('loginMsg');
     const spinner = document.getElementById('redirectSpinner');
@@ -326,51 +327,33 @@
       throw new Error('Dekripsi AES gagal. Periksa password di database atau format file enkripsi.');
     }
 
-    function parseQrPayload(text){
-      try{
-        const obj = JSON.parse(text);
-        if(obj && obj.url) return { url: obj.url, password: obj.password || obj.pass || '' };
-      }catch(e){}
-      try{
-        const params = new URLSearchParams(text.includes('?') ? text.split('?')[1] : text);
-        const url = params.get('url');
-        const password = params.get('password');
-        if(url) return { url, password: password || '' };
-      }catch(e){}
-      const pipeParts = text.split('|');
-      if(pipeParts.length >= 2 && pipeParts[0].startsWith('http')) return { url: pipeParts[0], password: pipeParts[1] };
-      return null;
+    async function lookupPasswordByUrl(url){
+      const endpoint = `${SUPABASE_URL}links?url=eq.${encodeURIComponent(url)}&select=password`;
+      const res = await fetch(endpoint, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+      });
+      if(!res.ok) throw new Error('QR_INVALID');
+      const rows = await res.json();
+      if(!rows || !rows.length || !rows[0].password) throw new Error('QR_INVALID');
+      return rows[0].password;
     }
 
     async function processQr(rawText){
       spinner.classList.add('show');
       clearMsg();
       try{
-        let payloadText = rawText;
-        try{
-          payloadText = await decryptAES(rawText, QR_MASTER_PASSWORD);
-        }catch(e){
-          payloadText = rawText;
-        }
-
-        const payload = parseQrPayload(payloadText) || parseQrPayload(rawText);
-        if(!payload || !payload.url) throw new Error('QR_INVALID');
-
-        await fetchAndDecryptFile(payload.url, payload.password);
+        const url = rawText.trim();
+        if(!/^https?:\/\//i.test(url)) throw new Error('QR_INVALID');
+        const password = await lookupPasswordByUrl(url);
+        await fetchAndDecryptFile(url, password);
       }catch(err){
         spinner.classList.remove('show');
-        if(err.message === 'QR_INVALID'){
-          showMsg('Kode QR tidak valid.', 'error');
-        }else{
-          showMsg('Password AES salah.', 'error');
-        }
+        showMsg(err.message === 'QR_INVALID' ? 'Kode QR tidak valid.' : 'Password AES salah.', 'error');
         rescanBtn.classList.add('show');
       }
     }
 
     async function fetchAndDecryptFile(url, password){
-      if(!url || !url.startsWith('http')) throw new Error('URL_INVALID');
-
       let response;
       try{
         response = await fetch(url);
@@ -391,7 +374,6 @@
 
       let decrypted;
       try{
-        if(!password) throw new Error('NO_PASSWORD');
         decrypted = await decryptAES(encryptedText.trim(), password);
       }catch(e){
         spinner.classList.remove('show');
