@@ -101,15 +101,55 @@
     }
     .reticle.show { opacity: 1; }
 
-    /* Frozen frame after successful capture */
-    .scan-zone.captured #qrReader { filter: brightness(0.55); }
+    /* Frozen frame after capture */
+    .scan-zone.captured #qrReader { filter: brightness(0.35); }
+
+    /* Decryption overlay */
+    .decrypt-overlay {
+      position: absolute; inset: 0;
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.7rem; padding: 1rem; z-index: 4;
+      color: #d1fae5;
+    }
+    .scan-zone.decrypting .decrypt-overlay { display: flex; }
+
+    .decrypt-icon i { font-size: 1.8rem; color: #34d399; }
+    .decrypt-label { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em; }
+
+    .decrypt-scramble {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.72rem; color: #6ee7b7;
+      letter-spacing: 0.06em; word-break: break-all; text-align: center;
+      max-width: 90%; line-height: 1.4; min-height: 1.4em;
+    }
+
+    .decrypt-bar-track {
+      width: 78%; height: 4px; border-radius: 4px;
+      background: rgba(255,255,255,0.15); overflow: hidden;
+    }
+    .decrypt-bar-fill {
+      height: 100%; width: 0%; border-radius: 4px;
+      background: linear-gradient(90deg, #34d399, #22c55e);
+      transition: width 0.1s linear;
+    }
+    .decrypt-pct { font-size: 0.7rem; color: #a7f3d0; font-weight: 600; }
+
+    /* Result state (after decrypt animation finishes) */
     .capture-check {
       position: absolute; inset: 0;
       display: none; align-items: center; justify-content: center;
       z-index: 4;
     }
     .capture-check i { font-size: 2.4rem; color: #22c55e; }
-    .scan-zone.captured .capture-check { display: flex; }
+    .scan-zone.result-ok .capture-check { display: flex; }
+
+    .capture-fail {
+      position: absolute; inset: 0;
+      display: none; align-items: center; justify-content: center;
+      z-index: 4;
+    }
+    .capture-fail i { font-size: 2.4rem; color: #ef4444; }
+    .scan-zone.result-fail .capture-fail { display: flex; }
 
     /* Message */
     #loginMsg {
@@ -163,7 +203,16 @@
       <div class="scan-zone" id="scanZone">
         <div id="qrReader"></div>
         <div class="reticle" id="reticle"></div>
+        <div class="decrypt-overlay" id="decryptOverlay">
+          <div class="decrypt-icon"><i class="fa-solid fa-lock-open"></i></div>
+          <div class="decrypt-label">Mendekripsi data QR…</div>
+          <div class="decrypt-scramble" id="decryptScramble"></div>
+          <div class="decrypt-bar-track"><div class="decrypt-bar-fill" id="decryptBarFill"></div></div>
+          <div class="decrypt-pct" id="decryptPct">0%</div>
+        </div>
+
         <div class="capture-check"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="capture-fail"><i class="fa-solid fa-circle-xmark"></i></div>
         <div class="scan-placeholder" id="scanPlaceholder">
           <i class="fa-solid fa-camera"></i>
           <div class="ph-label">Arahkan kamera ke kode QR untuk masuk</div>
@@ -196,6 +245,53 @@
       const scanPlaceholder = document.getElementById('scanPlaceholder');
       const startBtn        = document.getElementById('startBtn');
       const reticle         = document.getElementById('reticle');
+      const decryptScramble = document.getElementById('decryptScramble');
+      const decryptBarFill  = document.getElementById('decryptBarFill');
+      const decryptPct      = document.getElementById('decryptPct');
+
+      const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+
+      function randomScramble(len){
+        let out = '';
+        for (let i = 0; i < len; i++) out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+        return out;
+      }
+
+      // Visually "decrypts" the scanned text: scrambled characters progressively
+      // resolve into the real value while a progress bar fills up.
+      function runDecryptAnimation(rawText, onDone){
+        const targetLen = Math.max(rawText.length, 24);
+        const duration  = 1100;   // ms
+        const stepTime  = 45;     // ms per tick
+        const totalSteps = Math.ceil(duration / stepTime);
+        let step = 0;
+
+        const timer = setInterval(() => {
+          step++;
+          const progress = Math.min(step / totalSteps, 1);
+          const revealCount = Math.floor(progress * rawText.length);
+
+          let display = '';
+          for (let i = 0; i < targetLen; i++) {
+            if (i < rawText.length && i < revealCount) {
+              display += rawText[i];
+            } else if (i < rawText.length) {
+              display += randomScramble(1);
+            } else if (progress < 1) {
+              display += randomScramble(1);
+            }
+          }
+          decryptScramble.textContent = display;
+          decryptBarFill.style.width = (progress * 100).toFixed(0) + '%';
+          decryptPct.textContent = Math.round(progress * 100) + '%';
+
+          if (progress >= 1) {
+            clearInterval(timer);
+            decryptScramble.textContent = rawText;
+            setTimeout(onDone, 150);
+          }
+        }, stepTime);
+      }
 
       let qrInstance = null;
       let isBusy = false; // true while validating a scanned code (camera paused)
@@ -247,20 +343,33 @@
           scanZone.classList.add('captured');
 
           let text = String(decodedText || '').trim();
-          if (text === SECRET_TEXT) {
-            showMsg('✓ Berhasil masuk.', 'success');
-            localStorage.setItem(LS_KEY, 'true');
-            spinner.classList.add('show');
-            setTimeout(() => { window.location.href = REDIRECT_TO; }, 900);
-          } else {
-            showMsg('Kode QR tidak cocok. Coba lagi.', 'error');
-            setTimeout(() => {
-              scanZone.classList.remove('captured');
-              reticle.classList.remove('show');
-              isBusy = false;
-              startScanner();
-            }, 1400);
-          }
+
+          // Show the "decrypting" animation first, then reveal the result
+          decryptBarFill.style.width = '0%';
+          decryptPct.textContent = '0%';
+          decryptScramble.textContent = randomScramble(Math.max(text.length, 24));
+          scanZone.classList.add('decrypting');
+
+          runDecryptAnimation(text, () => {
+            scanZone.classList.remove('decrypting');
+
+            if (text === SECRET_TEXT) {
+              scanZone.classList.add('result-ok');
+              showMsg('✓ Berhasil didekripsi. Masuk…', 'success');
+              localStorage.setItem(LS_KEY, 'true');
+              spinner.classList.add('show');
+              setTimeout(() => { window.location.href = REDIRECT_TO; }, 900);
+            } else {
+              scanZone.classList.add('result-fail');
+              showMsg('Dekripsi gagal, kode QR tidak cocok. Coba lagi.', 'error');
+              setTimeout(() => {
+                scanZone.classList.remove('captured', 'result-fail');
+                reticle.classList.remove('show');
+                isBusy = false;
+                startScanner();
+              }, 1400);
+            }
+          });
         });
       }
 
