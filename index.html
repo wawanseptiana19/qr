@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login</title>
+  <title>Scan QR</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -101,55 +102,15 @@
     }
     .reticle.show { opacity: 1; }
 
-    /* Frozen frame after capture */
-    .scan-zone.captured #qrReader { filter: brightness(0.35); }
-
-    /* Decryption overlay */
-    .decrypt-overlay {
-      position: absolute; inset: 0;
-      display: none; flex-direction: column; align-items: center; justify-content: center;
-      gap: 0.7rem; padding: 1rem; z-index: 4;
-      color: #d1fae5;
-    }
-    .scan-zone.decrypting .decrypt-overlay { display: flex; }
-
-    .decrypt-icon i { font-size: 1.8rem; color: #34d399; }
-    .decrypt-label { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em; }
-
-    .decrypt-scramble {
-      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-      font-size: 0.72rem; color: #6ee7b7;
-      letter-spacing: 0.06em; word-break: break-all; text-align: center;
-      max-width: 90%; line-height: 1.4; min-height: 1.4em;
-    }
-
-    .decrypt-bar-track {
-      width: 78%; height: 4px; border-radius: 4px;
-      background: rgba(255,255,255,0.15); overflow: hidden;
-    }
-    .decrypt-bar-fill {
-      height: 100%; width: 0%; border-radius: 4px;
-      background: linear-gradient(90deg, #34d399, #22c55e);
-      transition: width 0.1s linear;
-    }
-    .decrypt-pct { font-size: 0.7rem; color: #a7f3d0; font-weight: 600; }
-
-    /* Result state (after decrypt animation finishes) */
+    /* Frozen frame after successful capture */
+    .scan-zone.captured #qrReader { filter: brightness(0.55); }
     .capture-check {
       position: absolute; inset: 0;
       display: none; align-items: center; justify-content: center;
       z-index: 4;
     }
     .capture-check i { font-size: 2.4rem; color: #22c55e; }
-    .scan-zone.result-ok .capture-check { display: flex; }
-
-    .capture-fail {
-      position: absolute; inset: 0;
-      display: none; align-items: center; justify-content: center;
-      z-index: 4;
-    }
-    .capture-fail i { font-size: 2.4rem; color: #ef4444; }
-    .scan-zone.result-fail .capture-fail { display: flex; }
+    .scan-zone.captured .capture-check { display: flex; }
 
     /* Message */
     #loginMsg {
@@ -172,6 +133,52 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner-icon { animation: spin 0.7s linear infinite; }
 
+    /* Preview area */
+    #previewArea { display: none; margin-bottom: 1rem; }
+    #previewArea.show { display: block; }
+    .preview-media-wrapper {
+      position: relative; width: 100%; border-radius: 0.75rem;
+      overflow: hidden; background: #f3f4f6; border: 1px solid #e5e7eb;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; min-height: 160px;
+    }
+    .preview-media-wrapper img, .preview-media-wrapper video { width: 100%; height: auto; display: block; max-height: 320px; object-fit: contain; }
+    .preview-media-wrapper audio { width: 100%; padding: 1rem; }
+    .preview-media-wrapper iframe { width: 100%; height: 320px; border: none; }
+    .preview-media-wrapper pre {
+      width: 100%; max-height: 260px; overflow: auto; margin: 0; padding: 0.85rem;
+      font-size: 0.72rem; white-space: pre-wrap; word-break: break-all;
+      font-family: 'DM Mono', monospace; color: #374151;
+    }
+    .preview-download-btn {
+      display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+      width: 100%; margin-top: 0.65rem; padding: 0.65rem;
+      border-radius: 0.6rem; border: none; cursor: pointer;
+      background: #111827; color: #fff; font-size: 0.82rem; font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    .preview-download-btn:hover { opacity: 0.85; }
+    .scan-again-btn {
+      display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+      width: 100%; margin-top: 0.5rem; padding: 0.6rem;
+      border-radius: 0.6rem; border: 1.5px solid #e5e7eb; cursor: pointer;
+      background: #fff; color: #4b5563; font-size: 0.8rem; font-weight: 600;
+    }
+
+    /* Fullscreen overlay */
+    #fsOverlay {
+      display: none; position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.9); align-items: center; justify-content: center; padding: 1.25rem;
+    }
+    #fsOverlay.show { display: flex; }
+    #fsOverlay img, #fsOverlay video { max-width: 100%; max-height: 90vh; border-radius: 0.5rem; }
+    #fsClose {
+      position: fixed; top: 1rem; right: 1rem; width: 36px; height: 36px;
+      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 0.6rem; color: #fff; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 1rem;
+    }
+
     /* Already logged */
     .already-logged {
       display: none; background: #f0fdf4; border: 1px solid #bbf7d0;
@@ -179,7 +186,6 @@
       font-size: 0.8rem; color: #15803d; font-weight: 500; margin-bottom: 1rem;
     }
     .already-logged.show { display: block; }
-    .already-logged a { color: #15803d; font-weight: 700; text-decoration: underline; cursor: pointer; }
 
     /* Footer */
     .footer {
@@ -194,28 +200,15 @@
     <div class="card">
 
       <div class="icon-wrap"><i class="fa-solid fa-qrcode"></i></div>
-      <h1>Masuk</h1>
-
-      <div class="already-logged" id="alreadyLoggedBadge">
-        Anda sudah masuk. <a id="goToBerandaLink">Lanjut ke Beranda →</a>
-      </div>
+      <h1>Pindai QR untuk Preview</h1>
 
       <div class="scan-zone" id="scanZone">
         <div id="qrReader"></div>
         <div class="reticle" id="reticle"></div>
-        <div class="decrypt-overlay" id="decryptOverlay">
-          <div class="decrypt-icon"><i class="fa-solid fa-lock-open"></i></div>
-          <div class="decrypt-label">Mendekripsi data QR…</div>
-          <div class="decrypt-scramble" id="decryptScramble"></div>
-          <div class="decrypt-bar-track"><div class="decrypt-bar-fill" id="decryptBarFill"></div></div>
-          <div class="decrypt-pct" id="decryptPct">0%</div>
-        </div>
-
         <div class="capture-check"><i class="fa-solid fa-circle-check"></i></div>
-        <div class="capture-fail"><i class="fa-solid fa-circle-xmark"></i></div>
         <div class="scan-placeholder" id="scanPlaceholder">
           <i class="fa-solid fa-camera"></i>
-          <div class="ph-label">Arahkan kamera ke kode QR untuk masuk</div>
+          <div class="ph-label">Arahkan kamera ke kode QR</div>
           <button class="ph-btn" id="startBtn">Aktifkan Kamera</button>
         </div>
       </div>
@@ -223,85 +216,36 @@
       <div id="loginMsg" aria-live="polite"></div>
 
       <div class="redirect-spinner" id="redirectSpinner">
-        <i class="fa-solid fa-circle-notch spinner-icon"></i> Mengalihkan…
+        <i class="fa-solid fa-circle-notch spinner-icon"></i> Mendekripsi…
       </div>
+
+      <div id="previewArea"></div>
 
       <div class="footer"><i class="fa-solid fa-shield-halved"></i> Akses terlindungi</div>
 
     </div>
   </div>
 
+  <div id="fsOverlay">
+    <button id="fsClose"><i class="fa-solid fa-xmark"></i></button>
+    <div id="fsContent"></div>
+  </div>
+
   <script>
     (function(){
-      const SECRET_TEXT = 'YQDYIpjYnF7PZtDYs6e8yZJmGqTuB4rgZQSaenc618nmy4x095';
-      const LS_KEY      = 'dekrip_logged_in';
-      const REDIRECT_TO = 'beranda.html';
-
       const msgEl           = document.getElementById('loginMsg');
       const spinner         = document.getElementById('redirectSpinner');
-      const alreadyBadge    = document.getElementById('alreadyLoggedBadge');
-      const goLink          = document.getElementById('goToBerandaLink');
       const scanZone        = document.getElementById('scanZone');
       const scanPlaceholder = document.getElementById('scanPlaceholder');
       const startBtn        = document.getElementById('startBtn');
       const reticle         = document.getElementById('reticle');
-      const decryptScramble = document.getElementById('decryptScramble');
-      const decryptBarFill  = document.getElementById('decryptBarFill');
-      const decryptPct      = document.getElementById('decryptPct');
-
-      const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-
-      function randomScramble(len){
-        let out = '';
-        for (let i = 0; i < len; i++) out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
-        return out;
-      }
-
-      // Visually "decrypts" the scanned text: scrambled characters progressively
-      // resolve into the real value while a progress bar fills up.
-      function runDecryptAnimation(rawText, onDone){
-        const targetLen = Math.max(rawText.length, 24);
-        const duration  = 1100;   // ms
-        const stepTime  = 45;     // ms per tick
-        const totalSteps = Math.ceil(duration / stepTime);
-        let step = 0;
-
-        const timer = setInterval(() => {
-          step++;
-          const progress = Math.min(step / totalSteps, 1);
-          const revealCount = Math.floor(progress * rawText.length);
-
-          let display = '';
-          for (let i = 0; i < targetLen; i++) {
-            if (i < rawText.length && i < revealCount) {
-              display += rawText[i];
-            } else if (i < rawText.length) {
-              display += randomScramble(1);
-            } else if (progress < 1) {
-              display += randomScramble(1);
-            }
-          }
-          decryptScramble.textContent = display;
-          decryptBarFill.style.width = (progress * 100).toFixed(0) + '%';
-          decryptPct.textContent = Math.round(progress * 100) + '%';
-
-          if (progress >= 1) {
-            clearInterval(timer);
-            decryptScramble.textContent = rawText;
-            setTimeout(onDone, 150);
-          }
-        }, stepTime);
-      }
+      const previewArea     = document.getElementById('previewArea');
+      const fsOverlay       = document.getElementById('fsOverlay');
+      const fsContent       = document.getElementById('fsContent');
+      const fsClose         = document.getElementById('fsClose');
 
       let qrInstance = null;
-      let isBusy = false; // true while validating a scanned code (camera paused)
-
-      if (localStorage.getItem(LS_KEY) === 'true') {
-        alreadyBadge.classList.add('show');
-        goLink.addEventListener('click', () => { window.location.href = REDIRECT_TO; });
-        setTimeout(() => { window.location.href = REDIRECT_TO; }, 1500);
-        return; // no need to touch the camera
-      }
+      let isBusy = false;
 
       function showMsg(text, type){ msgEl.textContent = text; msgEl.className = 'has-msg ' + type; }
       function clearMsg(){ msgEl.textContent = ''; msgEl.className = ''; }
@@ -318,8 +262,8 @@
           { facingMode: 'environment' },
           config,
           onScanSuccess,
-          () => {} // ignore per-frame "not found" errors
-        ).catch(err => {
+          () => {}
+        ).catch(() => {
           scanPlaceholder.classList.remove('hidden');
           scanZone.classList.remove('active');
           showMsg('Tidak bisa mengakses kamera. Izinkan akses kamera lalu coba lagi.', 'error');
@@ -327,56 +271,243 @@
       }
 
       function stopScanner(){
-        if (qrInstance) {
-          return qrInstance.stop().catch(() => {});
-        }
+        if (qrInstance) return qrInstance.stop().catch(() => {});
         return Promise.resolve();
       }
 
+      function resetScan(){
+        scanZone.classList.remove('captured');
+        reticle.classList.remove('show');
+        previewArea.classList.remove('show');
+        previewArea.innerHTML = '';
+        clearMsg();
+        isBusy = false;
+        startScanner();
+      }
+
       function onScanSuccess(decodedText){
-        if (isBusy) return; // debounce multiple detections while paused
+        if (isBusy) return;
         isBusy = true;
 
-        // Freeze the camera as soon as a QR is detected
         reticle.classList.add('show');
         stopScanner().then(() => {
           scanZone.classList.add('captured');
-
-          let text = String(decodedText || '').trim();
-
-          // Show the "decrypting" animation first, then reveal the result
-          decryptBarFill.style.width = '0%';
-          decryptPct.textContent = '0%';
-          decryptScramble.textContent = randomScramble(Math.max(text.length, 24));
-          scanZone.classList.add('decrypting');
-
-          runDecryptAnimation(text, () => {
-            scanZone.classList.remove('decrypting');
-
-            if (text === SECRET_TEXT) {
-              scanZone.classList.add('result-ok');
-              showMsg('✓ Berhasil didekripsi. Masuk…', 'success');
-              localStorage.setItem(LS_KEY, 'true');
-              spinner.classList.add('show');
-              setTimeout(() => { window.location.href = REDIRECT_TO; }, 900);
-            } else {
-              scanZone.classList.add('result-fail');
-              showMsg('Dekripsi gagal, kode QR tidak cocok. Coba lagi.', 'error');
-              setTimeout(() => {
-                scanZone.classList.remove('captured', 'result-fail');
-                reticle.classList.remove('show');
-                isBusy = false;
-                startScanner();
-              }, 1400);
-            }
-          });
+          handleScannedText(String(decodedText || '').trim());
         });
       }
 
-      startBtn.addEventListener('click', startScanner);
+      // ===== Format QR: "url|password" =====
+      function parseQrPayload(text){
+        const idx = text.indexOf('|');
+        if(idx === -1) return null;
+        const url = text.slice(0, idx).trim();
+        const password = text.slice(idx + 1).trim();
+        if(!url || !password) return null;
+        return { url, password };
+      }
 
-      // Try to start automatically; if permission is required, the placeholder
-      // with the manual button stays visible until the user taps it.
+      async function handleScannedText(text){
+        const payload = parseQrPayload(text);
+        if(!payload){
+          showMsg('Format kode QR tidak dikenali.', 'error');
+          setTimeout(resetScan, 1600);
+          return;
+        }
+
+        spinner.classList.add('show');
+        showMsg('', '');
+        try{
+          if(!payload.url.startsWith('http')) throw new Error('URL tidak valid.');
+          const response = await fetch(payload.url);
+          if(!response.ok) throw new Error(`Gagal memuat file (${response.status})`);
+          const encryptedText = await response.text();
+          const decrypted = await decryptAES(encryptedText.trim(), payload.password);
+          const cleaned = decrypted.trim();
+
+          spinner.classList.remove('show');
+          showMsg('✓ Berhasil didekripsi.', 'success');
+          renderPreview(cleaned);
+        }catch(err){
+          spinner.classList.remove('show');
+          showMsg(err.message, 'error');
+          setTimeout(resetScan, 1800);
+        }
+      }
+
+      // ===== AES decrypt (sama seperti beranda.html) =====
+      async function decryptAES(ciphertext, password){
+        const clean = ciphertext.trim();
+        if(typeof CryptoJS === 'undefined') throw new Error('CryptoJS tidak tersedia.');
+        try{
+          const bytes = CryptoJS.AES.decrypt(clean, password);
+          if(bytes && bytes.sigBytes > 0){
+            try{
+              const resultUtf8 = bytes.toString(CryptoJS.enc.Utf8);
+              if(resultUtf8 && resultUtf8.length > 0) return resultUtf8;
+            }catch(e){}
+            const resultBase64 = bytes.toString(CryptoJS.enc.Base64);
+            if(resultBase64 && resultBase64.length > 0) return resultBase64;
+          }
+        }catch(e){}
+        throw new Error('Dekripsi AES gagal. Periksa password atau format file.');
+      }
+
+      // ===== Base64 & MIME helpers (sama seperti beranda.html) =====
+      function normalizeBase64(b64){
+        if(!b64 || typeof b64 !== 'string') return '';
+        let s = b64.replace(/\s+/g,'');
+        const m = s.match(/^data:.*;base64,(.*)$/i);
+        if(m) s = m[1];
+        s = s.replace(/-/g,'+').replace(/_/g,'/');
+        const pad = s.length % 4;
+        if(pad === 2) s += '==';
+        else if(pad === 3) s += '=';
+        return s;
+      }
+      function isBase64String(s){
+        if(!s || typeof s !== 'string') return false;
+        const c = normalizeBase64(s);
+        return c.length % 4 === 0 && /^[A-Za-z0-9+/=]+$/.test(c);
+      }
+      function getMimeFromBase64Sample(b64){
+        try{
+          const cleaned = normalizeBase64(b64).slice(0, 2000);
+          if(!cleaned) return null;
+          const bin = atob(cleaned);
+          const c0 = bin.charCodeAt(0), c1 = bin.charCodeAt(1);
+          if(c0===0x89 && bin[1]==='P' && bin[2]==='N' && bin[3]==='G') return 'image/png';
+          if(c0===0xFF && c1===0xD8) return 'image/jpeg';
+          if(bin.startsWith('GIF87a') || bin.startsWith('GIF89a')) return 'image/gif';
+          if(bin.trim().startsWith('<svg')) return 'image/svg+xml';
+          if(bin.startsWith('%PDF')) return 'application/pdf';
+          if(bin.startsWith('ID3') || (c0===0xFF && (c1&0xE0)===0xE0)) return 'audio/mpeg';
+          if(bin.indexOf('ftyp')!==-1) return 'video/mp4';
+          if(bin.toLowerCase().indexOf('webm')!==-1) return 'video/webm';
+          const prefix = normalizeBase64(b64).slice(0, 8);
+          if(prefix.startsWith('iVBOR') || prefix.startsWith('iVBORw0K')) return 'image/png';
+          if(prefix.startsWith('/9j/')) return 'image/jpeg';
+          if(prefix.startsWith('R0lG')) return 'image/gif';
+          if(prefix.startsWith('JVBER')) return 'application/pdf';
+          return null;
+        }catch(e){ return null; }
+      }
+      function base64ToBlob(base64, mime){
+        const binary = atob(base64);
+        const arr = new Uint8Array(binary.length);
+        for(let i=0;i<binary.length;i++) arr[i] = binary.charCodeAt(i);
+        return new Blob([arr], { type: mime || 'application/octet-stream' });
+      }
+
+      // ===== Render preview (sama seperti beranda.html) =====
+      function renderPreview(cleaned){
+        previewArea.innerHTML = '';
+        previewArea.classList.add('show');
+
+        let mime = getMimeFromBase64Sample(cleaned);
+        if(!mime){
+          if(cleaned.startsWith('iVBOR') || cleaned.startsWith('iVBORw0K')) mime = 'image/png';
+          else if(cleaned.startsWith('/9j/')) mime = 'image/jpeg';
+          else if(cleaned.startsWith('R0lG')) mime = 'image/gif';
+          else if(cleaned.startsWith('JVBER')) mime = 'application/pdf';
+        }
+
+        const ext = mime ? (mime.split('/')[1] || 'bin').replace('jpeg','jpg') : 'txt';
+        const filename = `hasil-scan.${ext}`;
+        const looksLikeBase64 = isBase64String(cleaned);
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'preview-media-wrapper';
+        previewArea.appendChild(wrapper);
+
+        let blob = null, objUrl = null;
+
+        if(looksLikeBase64 && mime){
+          const norm = normalizeBase64(cleaned);
+          try{ blob = base64ToBlob(norm, mime); }catch(e){}
+          objUrl = blob ? URL.createObjectURL(blob) : `data:${mime};base64,${norm}`;
+
+          if(mime.startsWith('image/')){
+            const img = document.createElement('img');
+            img.src = objUrl;
+            wrapper.appendChild(img);
+            wrapper.addEventListener('click', () => openFullscreen('image', objUrl));
+          }else if(mime.startsWith('video/')){
+            const video = document.createElement('video');
+            video.src = objUrl; video.controls = true; video.setAttribute('playsinline','');
+            wrapper.appendChild(video);
+            wrapper.addEventListener('click', (e) => { if(e.target !== video) openFullscreen('video', objUrl); });
+          }else if(mime.startsWith('audio/')){
+            const audio = document.createElement('audio');
+            audio.src = objUrl; audio.controls = true;
+            wrapper.appendChild(audio);
+            wrapper.style.cursor = 'default';
+          }else if(mime === 'application/pdf'){
+            const iframe = document.createElement('iframe');
+            iframe.src = objUrl;
+            wrapper.appendChild(iframe);
+            wrapper.style.cursor = 'default';
+          }else{
+            let displayText = cleaned;
+            try{ displayText = atob(norm).slice(0, 500); }catch(e){}
+            const pre = document.createElement('pre');
+            pre.textContent = displayText + (displayText.length >= 500 ? '\n...(terpotong)...' : '');
+            wrapper.appendChild(pre);
+            wrapper.addEventListener('click', () => openFullscreen('text', null, displayText));
+          }
+        }else{
+          const pre = document.createElement('pre');
+          pre.textContent = cleaned.slice(0,1000) + (cleaned.length>1000 ? '\n...(terpotong)...' : '');
+          wrapper.appendChild(pre);
+          wrapper.addEventListener('click', () => openFullscreen('text', null, cleaned));
+        }
+
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'preview-download-btn';
+        dlBtn.innerHTML = '<i class="fa-solid fa-download"></i> Unduh';
+        dlBtn.addEventListener('click', () => {
+          const useBlob = blob || new Blob([cleaned], { type: 'text/plain' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(useBlob);
+          a.download = filename;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        });
+        previewArea.appendChild(dlBtn);
+
+        const againBtn = document.createElement('button');
+        againBtn.className = 'scan-again-btn';
+        againBtn.innerHTML = '<i class="fa-solid fa-qrcode"></i> Pindai Lagi';
+        againBtn.addEventListener('click', resetScan);
+        previewArea.appendChild(againBtn);
+      }
+
+      // ===== Fullscreen (sama seperti beranda.html) =====
+      function openFullscreen(mediaType, src, text){
+        fsContent.innerHTML = '';
+        if(mediaType === 'image'){
+          const img = document.createElement('img');
+          img.src = src;
+          fsContent.appendChild(img);
+        }else if(mediaType === 'video'){
+          const video = document.createElement('video');
+          video.src = src; video.controls = true; video.autoplay = true;
+          fsContent.appendChild(video);
+        }else{
+          const box = document.createElement('div');
+          box.style.cssText = 'background:#0f172a;color:#e2e8f0;border-radius:10px;padding:1.5rem;font-size:0.84rem;max-width:700px;width:100%;max-height:80vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all;font-family:monospace;line-height:1.6;';
+          box.textContent = text || src;
+          fsContent.appendChild(box);
+        }
+        fsOverlay.classList.add('show');
+      }
+      fsClose.addEventListener('click', () => {
+        fsOverlay.classList.remove('show');
+        const vid = fsContent.querySelector('video');
+        if(vid){ vid.pause(); vid.src=''; }
+        fsContent.innerHTML = '';
+      });
+      fsOverlay.addEventListener('click', (e) => { if(e.target === fsOverlay) fsClose.click(); });
+
+      startBtn.addEventListener('click', startScanner);
       startScanner();
     })();
   </script>
